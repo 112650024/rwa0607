@@ -1,0 +1,22 @@
+# deps
+**/node_modules/
+
+# secrets
+.env
+**/.env
+
+# hardhat build artifacts
+onchain/artifacts/
+onchain/cache/
+onchain/deployed.json
+onchain/typechain-types/
+
+# frontend build
+frontend/dist/
+
+# misc
+*.log
+npm-debug.log*
+.DS_Store
+.vscode/
+.idea/

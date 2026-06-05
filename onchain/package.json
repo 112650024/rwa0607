@@ -1,0 +1,21 @@
+{
+  "name": "rwa-tw-stock-onchain",
+  "version": "1.0.0",
+  "description": "RWA 台股代幣化:價格預言機 + 台股代幣工廠 + TWSE 餵價",
+  "scripts": {
+    "test": "hardhat test",
+    "compile": "hardhat compile",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "feed:sepolia": "node scripts/feeder.js",
+    "verify:sepolia": "hardhat run scripts/verify.js --network sepolia"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2",
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5"
+  }
+}

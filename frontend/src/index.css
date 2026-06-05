@@ -1,0 +1,137 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   FormosaX v2 — "東方金融終端機 / Cyber-Finance" 設計系統
+   近黑墨底 + 玉(jade)/金(gold)雙主色 · 等寬數字 · 終端網格
+   ============================================================ */
+:root {
+  --radius: 0.8rem;
+
+  --background: #07090e;
+  --foreground: #e6edf6;
+  --card: #0c1018;
+  --card-foreground: #e6edf6;
+  --popover: #0c1018;
+  --popover-foreground: #e6edf6;
+
+  --primary: #19e6b0;            /* jade 玉 */
+  --primary-foreground: #03130d;
+  --secondary: #141a26;
+  --secondary-foreground: #e6edf6;
+  --muted: #111723;
+  --muted-foreground: #8a97a8;
+  --accent: #f5b544;            /* gold 金 */
+  --accent-foreground: #1a1205;
+  --destructive: #ff5a5a;
+
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.10);
+  --ring: #19e6b0;
+
+  --up: #ff5a5a;                /* 台股慣例:漲紅 */
+  --down: #46e08a;             /* 跌綠 */
+
+  --chart-1: #19e6b0;
+  --chart-2: #f5b544;
+  --chart-3: #2f6bff;
+  --chart-4: #c98aff;
+  --chart-5: #ff7a45;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-up: var(--up);
+  --color-down: var(--down);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-display: "Clash Display", "Noto Sans TC", sans-serif;
+  --font-sans: "General Sans", "Noto Sans TC", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    margin: 0;
+    min-height: 100svh;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+  /* 終端機氛圍背景:玉/金光暈 + 細網格 */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    background:
+      radial-gradient(60vw 60vw at 12% -10%, rgba(25, 230, 176, 0.10), transparent 60%),
+      radial-gradient(50vw 50vw at 100% 0%, rgba(245, 181, 68, 0.08), transparent 55%);
+  }
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(120vw 100vh at 50% 0%, #000 30%, transparent 80%);
+  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #1b2230; border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: #28323f; }
+}
+
+@layer utilities {
+  .font-display { font-family: var(--font-display); }
+  .font-mono-num { font-family: var(--font-mono); font-feature-settings: "tnum"; }
+  .glass {
+    background: color-mix(in oklab, var(--card) 86%, transparent);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--border);
+  }
+  .text-up { color: var(--up); }
+  .text-down { color: var(--down); }
+  .glow-jade { box-shadow: 0 0 0 1px rgba(25,230,176,.25), 0 10px 40px -12px rgba(25,230,176,.45); }
+  .glow-gold { box-shadow: 0 0 0 1px rgba(245,181,68,.25), 0 10px 40px -12px rgba(245,181,68,.45); }
+}
