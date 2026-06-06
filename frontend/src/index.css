@@ -135,3 +135,21 @@
   .glow-jade { box-shadow: 0 0 0 1px rgba(25,230,176,.25), 0 10px 40px -12px rgba(25,230,176,.45); }
   .glow-gold { box-shadow: 0 0 0 1px rgba(245,181,68,.25), 0 10px 40px -12px rgba(245,181,68,.45); }
 }
+
+/* 跑馬燈 */
+.ticker-wrap { overflow: hidden; }
+.ticker {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  will-change: transform;
+  animation: marquee 120s linear infinite;
+}
+.ticker-wrap:hover .ticker { animation-play-state: paused; }
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* 數字閃動 */
+@keyframes flashUp { 0% { color: var(--up); text-shadow: 0 0 12px rgba(255,90,90,.6); } 100% {} }
+@keyframes flashDown { 0% { color: var(--down); text-shadow: 0 0 12px rgba(70,224,138,.6); } 100% {} }
+.flash-up { animation: flashUp .8s ease; }
+.flash-down { animation: flashDown .8s ease; }

@@ -1,23 +1,21 @@
-import { Button } from "@/components/ui/button"
+import { Routes, Route } from "react-router-dom"
+import { Layout } from "@/components/Layout"
+import Dashboard from "@/routes/Dashboard"
+import Trade from "@/routes/Trade"
+import Lending from "@/routes/Lending"
+import IPO from "@/routes/IPO"
+import Stablecoin from "@/routes/Stablecoin"
 
-function App() {
+export default function App() {
   return (
-    <div className="min-h-svh flex flex-col items-center justify-center gap-6 p-8 text-center">
-      <span className="font-mono-num text-xs tracking-widest text-primary/80 uppercase">
-        Real World Asset · On-chain · Sepolia
-      </span>
-      <h1 className="font-display text-6xl font-bold">
-        Formosa<span className="text-primary">X</span>
-      </h1>
-      <p className="text-muted-foreground max-w-md">
-        台股 RWA 鏈上金融 — 受監管穩定幣、預言機報價、股票借貸與 IPO 認購。
-      </p>
-      <div className="flex gap-3">
-        <Button className="bg-primary text-primary-foreground hover:bg-primary/90">連接錢包</Button>
-        <Button variant="outline">探索市場</Button>
-      </div>
-    </div>
+    <Routes>
+      <Route element={<Layout />}>
+        <Route index element={<Dashboard />} />
+        <Route path="trade" element={<Trade />} />
+        <Route path="lending" element={<Lending />} />
+        <Route path="ipo" element={<IPO />} />
+        <Route path="stablecoin" element={<Stablecoin />} />
+      </Route>
+    </Routes>
   )
 }
-
-export default App
