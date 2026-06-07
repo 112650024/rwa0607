@@ -5,11 +5,16 @@ import { PageHeader } from "@/components/PageHeader"
 import { useWallet } from "@/lib/wallet"
 import { useTx } from "@/hooks/useTx"
 import { IPO as IPO_C, IPO_OFFERINGS, TWD } from "@/lib/contracts"
-import { stockByCode } from "@/lib/catalog"
+import { stockByCode, type Stock } from "@/lib/catalog"
 import { StockLogo } from "@/components/StockLogo"
 import { fmtTWD, fmtNum } from "@/lib/format"
 import { Rocket, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+// 把鏈上的 IPO 認購案在前端重新品牌化(demo 用)
+const IPO_BRAND: Record<string, Stock> = {
+  "0050": { code: "SPACEX", name: "SpaceX", symbol: "dSPACEX", fallback: 0, tint: "#0b3d91,#05070f", domain: "spacex.com" },
+}
 
 function countdown(end: number) {
   const s = end - Math.floor(Date.now() / 1000)
@@ -27,7 +32,7 @@ function OfferingCard({ id }: { id: number }) {
   const [busy, setBusy] = useState(false)
 
   const code = IPO_OFFERINGS.find((o) => o.id === id)?.code
-  const stock = code ? stockByCode(code) : undefined
+  const stock = code ? IPO_BRAND[code] ?? stockByCode(code) : undefined
 
   const { data, refetch } = useReadContracts({
     contracts: [
@@ -86,7 +91,7 @@ function OfferingCard({ id }: { id: number }) {
         )}
         <div className="flex-1">
           <div className="font-semibold">
-            {stock?.name ?? "新股"} <span className="font-mono-num text-xs text-muted-foreground">{code}</span>
+            {stock?.name ?? "新股"} <span className="font-mono-num text-xs text-muted-foreground">{stock?.code ?? code}</span>
           </div>
           <div className="font-mono-num text-[11px] text-primary">{stock?.symbol}</div>
         </div>
@@ -154,7 +159,7 @@ export default function IPO() {
       <PageHeader
         icon={Rocket}
         title="IPO 新股認購"
-        desc="參與台股代幣新股認購:認購窗口內以固定價格出資,超額認購採 pro-rata 配額並退還溢繳款 —— 台股「抽籤/配額」鏈上重現。"
+        desc="參與代幣化新股認購:認購窗口內以固定價格出資,超額認購採 pro-rata 配額並退還溢繳款 —— 例如話題十足的 SpaceX 上市前認購,「抽籤/配額」鏈上重現。"
       />
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {ids.map((id) => (
