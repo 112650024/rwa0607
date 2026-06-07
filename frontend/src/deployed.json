@@ -3914,5 +3914,19 @@
       "code": "0050",
       "token": "0x3A533Bd5E69aeC180029225d58011Ba599ef42f0"
     }
-  ]
+  ],
+  "uniswap": {
+    "factory": "0x0227628f3F023bb0B980b67D528571c95c6DaC1c",
+    "npm": "0x1238536071E1c677A632429e3655c799b22cDA52",
+    "router": "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E",
+    "quoter": "0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3",
+    "pool": "0xe69aF036F8290Ed0371f79dE8E1060211e9f5353",
+    "token0": "0x0ec97A83E96C7e61b4eDD6FB5Bf33ddEaF63df67",
+    "token1": "0x1CB2Ea6f8eB47c24387B015C75D9d1dad800dc53",
+    "fee": 3000,
+    "twd": "0x0ec97A83E96C7e61b4eDD6FB5Bf33ddEaF63df67",
+    "stockToken": "0x1CB2Ea6f8eB47c24387B015C75D9d1dad800dc53",
+    "stockCode": "2330",
+    "stockSymbol": "dTSMC"
+  }
 }

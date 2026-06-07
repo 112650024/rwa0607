@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import {
   LayoutDashboard,
   ArrowLeftRight,
+  Repeat,
   Landmark,
   Rocket,
   ShieldCheck,
@@ -21,6 +22,7 @@ const FAUCET_AMT = 100000
 const NAV = [
   { to: "/", label: "總覽", icon: LayoutDashboard, end: true },
   { to: "/trade", label: "交易", icon: ArrowLeftRight },
+  { to: "/swap", label: "Swap", icon: Repeat },
   { to: "/lending", label: "借貸", icon: Landmark },
   { to: "/ipo", label: "IPO 認購", icon: Rocket },
   { to: "/stablecoin", label: "穩定幣", icon: ShieldCheck },
@@ -198,7 +200,7 @@ export function Layout() {
           <PageFade />
         </main>
 
-        <nav className="sticky bottom-0 z-30 grid grid-cols-5 border-t border-border bg-background/90 backdrop-blur-xl md:hidden">
+        <nav className="sticky bottom-0 z-30 grid grid-cols-6 border-t border-border bg-background/90 backdrop-blur-xl md:hidden">
           {NAV.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}

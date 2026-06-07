@@ -33,6 +33,22 @@ export const stockContract = (code: string): ContractRef | null => {
   return t ? { address: t, abi: STOCK_ABI } : null
 }
 
+export type UniswapCfg = {
+  factory: string
+  npm: string
+  router: `0x${string}`
+  quoter: `0x${string}`
+  pool: `0x${string}`
+  token0: `0x${string}`
+  token1: `0x${string}`
+  fee: number
+  twd: `0x${string}`
+  stockToken: `0x${string}`
+  stockCode: string
+  stockSymbol: string
+}
+export const UNISWAP = (deployed as { uniswap?: UniswapCfg }).uniswap
+
 export const sym32 = (code: string) => stringToHex(code, { size: 32 })
 export const txUrl = (h: string) => `${EXPLORER}/tx/${h}`
 export const addrUrl = (a: string) => `${EXPLORER}/address/${a}`
