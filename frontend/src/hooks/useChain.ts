@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useAccount, useReadContract, useReadContracts } from "wagmi"
 import { TWD, ORACLE, sym32 } from "@/lib/contracts"
 import { CATALOG } from "@/lib/catalog"
@@ -48,12 +48,9 @@ function series(prev: number, close: number, high: number, low: number, n = 28):
   return pts
 }
 
-type Anchor = { anchor: number; prevClose: number; high: number; low: number }
-
 /**
- * 台股行情:
- *  - 價格錨定鏈上預言機價(≈ TWSE 收盤),漲跌%與走勢用真實 TWSE。
- *  - 盤中模擬跳動:只在「今天真實最高~最低」區間內輕微浮動、向收盤回歸(看起來活、不亂掰)。
+ * 台股行情:價格 = 鏈上預言機價(≈ TWSE 真實收盤,精準對得上),
+ * 漲跌% 與走勢線用真實 TWSE 開高低收。台股免費資料為「日收盤」,故盤中不跳動(精準優先)。
  */
 export function usePrices(): Market {
   const twse = useTwse()
@@ -73,62 +70,36 @@ export function usePrices(): Market {
     return m
   })
 
-  const anchors = useRef<Record<string, Anchor>>({})
-  const seeded = useRef<Set<string>>(new Set())
-
-  // 更新錨點 + 首次以真實資料 seed
   useEffect(() => {
-    CATALOG.forEach((s, i) => {
-      let oracle = 0
-      const r = data?.[i]
-      if (r?.status === "success" && Array.isArray(r.result)) {
-        const [p, dec] = r.result as unknown as [bigint, number, bigint]
-        oracle = Number(p) / 10 ** Number(dec)
-      }
-      const t = twse[s.code]
-      if (t && t.close > 0) {
-        const prevClose = t.close - t.change
-        anchors.current[s.code] = { anchor: oracle || t.close, prevClose, high: t.high || t.close, low: t.low || t.close }
-      }
-    })
-    setMarket((prev) => {
-      let changed = false
-      const next = { ...prev }
-      CATALOG.forEach((s) => {
-        const a = anchors.current[s.code]
-        if (a && !seeded.current.has(s.code)) {
-          seeded.current.add(s.code)
-          const pct = a.prevClose ? ((a.anchor - a.prevClose) / a.prevClose) * 100 : 0
-          next[s.code] = { price: a.anchor, prev: a.prevClose, pct, hist: series(a.prevClose, a.anchor, a.high, a.low) }
-          changed = true
+    setMarket((prevM) => {
+      const next: Market = {}
+      CATALOG.forEach((s, i) => {
+        const cur = prevM[s.code]
+        // 鏈上預言機價(顯示用,精準)
+        let price = cur.price
+        const r = data?.[i]
+        if (r?.status === "success" && Array.isArray(r.result)) {
+          const [p, dec] = r.result as unknown as [bigint, number, bigint]
+          price = Number(p) / 10 ** Number(dec)
+        }
+        // 真實漲跌與走勢線(TWSE)
+        const t = twse[s.code]
+        if (t && t.close > 0) {
+          const prevClose = t.close - t.change
+          const pct = prevClose ? (t.change / prevClose) * 100 : 0
+          next[s.code] = {
+            price: price || t.close,
+            prev: prevClose,
+            pct,
+            hist: series(prevClose || t.close, t.close, t.high, t.low),
+          }
+        } else {
+          next[s.code] = { price, prev: cur.prev, pct: cur.pct, hist: cur.hist }
         }
       })
-      return changed ? next : prev
+      return next
     })
   }, [data, twse])
-
-  // 盤中模擬跳動(每 2.5 秒,在真實高低區間內)
-  useEffect(() => {
-    const id = setInterval(() => {
-      setMarket((prev) => {
-        const next: Market = {}
-        let any = false
-        CATALOG.forEach((s) => {
-          const cur = prev[s.code]
-          const a = anchors.current[s.code]
-          if (!a || !seeded.current.has(s.code)) { next[s.code] = cur; return }
-          any = true
-          const band = Math.max(a.high - a.low, a.anchor * 0.004)
-          let p = cur.price + (Math.random() - 0.5) * band * 0.08 + (a.anchor - cur.price) * 0.06
-          p = Math.min(a.high, Math.max(a.low, p))
-          const pct = a.prevClose ? ((p - a.prevClose) / a.prevClose) * 100 : 0
-          next[s.code] = { price: p, prev: cur.price, pct, hist: [...cur.hist.slice(1), p] }
-        })
-        return any ? next : prev
-      })
-    }, 2500)
-    return () => clearInterval(id)
-  }, [])
 
   return market
 }
