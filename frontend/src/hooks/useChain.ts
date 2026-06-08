@@ -4,6 +4,7 @@ import { TWD, ORACLE, sym32 } from "@/lib/contracts"
 import { CATALOG } from "@/lib/catalog"
 import { fmtNum } from "@/lib/format"
 import { useTx } from "./useTx"
+import { useTwse } from "./useTwse"
 import type { Market } from "./useMarket"
 
 /** TWD 餘額(顆) */
@@ -30,18 +31,26 @@ export function useFaucet() {
   return { claim, isPending }
 }
 
-function seed(p0: number) {
-  const a: number[] = []
-  let p = p0
-  for (let i = 0; i < 40; i++) {
-    p = Math.max(1, p * (1 + (Math.random() - 0.5) * 0.01))
-    a.push(p)
+/** 由「昨收→今收 + 開高低」生出方向正確的走勢線(決定性,不亂跳)。 */
+function series(prev: number, close: number, high: number, low: number, n = 28): number[] {
+  const lo = Math.min(low || prev, prev, close)
+  const hi = Math.max(high || prev, prev, close)
+  const amp = hi - lo || Math.max(close * 0.01, 1)
+  const pts: number[] = []
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1)
+    let v = prev + (close - prev) * t + Math.sin(i * 1.3 + (prev % 7)) * amp * 0.18
+    v = Math.min(hi, Math.max(lo, v))
+    pts.push(v)
   }
-  return a
+  pts[0] = prev
+  pts[n - 1] = close
+  return pts
 }
 
-/** 從預言機讀全部台股即時價(每 30 秒);回傳與 useMarket 相同結構。 */
+/** 台股行情:價格用鏈上預言機,漲跌%與走勢線用真實 TWSE 開高低收。 */
 export function usePrices(): Market {
+  const twse = useTwse()
   const { data } = useReadContracts({
     contracts: CATALOG.map((s) => ({
       address: ORACLE.address,
@@ -54,32 +63,40 @@ export function usePrices(): Market {
 
   const [market, setMarket] = useState<Market>(() => {
     const m: Market = {}
-    for (const s of CATALOG) m[s.code] = { price: s.fallback, prev: s.fallback, pct: 0, hist: seed(s.fallback) }
+    for (const s of CATALOG) m[s.code] = { price: s.fallback, prev: s.fallback, pct: 0, hist: Array(28).fill(s.fallback) }
     return m
   })
 
   useEffect(() => {
-    if (!data) return
-    setMarket((prev) => {
+    setMarket((prevM) => {
       const next: Market = {}
       CATALOG.forEach((s, i) => {
-        const r = data[i]
-        const cur = prev[s.code]
+        const cur = prevM[s.code]
+        // 鏈上預言機價(顯示用)
         let price = cur.price
+        const r = data?.[i]
         if (r?.status === "success" && Array.isArray(r.result)) {
           const [p, dec] = r.result as unknown as [bigint, number, bigint]
           price = Number(p) / 10 ** Number(dec)
         }
-        next[s.code] = {
-          price,
-          prev: cur.price,
-          pct: (price / s.fallback - 1) * 100,
-          hist: [...cur.hist.slice(-39), price],
+        // 真實漲跌與走勢線(TWSE)
+        const t = twse[s.code]
+        if (t && t.close > 0) {
+          const prevClose = t.close - t.change
+          const pct = prevClose ? (t.change / prevClose) * 100 : 0
+          next[s.code] = {
+            price: price || t.close,
+            prev: prevClose,
+            pct,
+            hist: series(prevClose || t.close, t.close, t.high, t.low),
+          }
+        } else {
+          next[s.code] = { price, prev: cur.prev, pct: cur.pct, hist: cur.hist }
         }
       })
       return next
     })
-  }, [data])
+  }, [data, twse])
 
   return market
 }
