@@ -18,3 +18,17 @@ export function useTwse(): Record<string, TwseQuote> {
   }, [])
   return q
 }
+
+/** 從 /api/history 取真實近 N 日每日收盤序列 { code: number[] }。日資料,掛載抓一次即可。 */
+export function useTwseHistory(): Record<string, number[]> {
+  const [h, setH] = useState<Record<string, number[]>>({})
+  useEffect(() => {
+    let alive = true
+    fetch("/api/history")
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d) => { if (alive) setH(d || {}) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [])
+  return h
+}

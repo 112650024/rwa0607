@@ -4,7 +4,7 @@ import { TWD, ORACLE, LENDING, IPO, STOCKS, stockContract, sym32 } from "@/lib/c
 import { CATALOG } from "@/lib/catalog"
 import { fmtNum } from "@/lib/format"
 import { useTx } from "./useTx"
-import { useTwse } from "./useTwse"
+import { useTwse, useTwseHistory } from "./useTwse"
 import type { Market } from "./useMarket"
 
 /** TWD 餘額(顆) */
@@ -49,12 +49,14 @@ function series(prev: number, close: number, high: number, low: number, n = 28):
 }
 
 /**
- * 台股行情:價格、漲跌% 與走勢線終點皆以「鏈上預言機價」為當前值(feeder 餵 TWSE 即時成交價),
- * /api/twse 只提供基準帶(昨收/開/高/低)。其後備為 STOCK_DAY_ALL(openapi,非 MIS、不限台灣 IP),
- * 故線上即使 MIS 被擋,漲跌%/走勢線仍由鏈上價驅動、不會變平線,且顯示價與漲跌% 內部一致。
+ * 台股行情:
+ * - 價格與漲跌% 以「鏈上預言機價」為當前值(feeder 餵 TWSE 即時成交價),/api/twse 提供昨收基準。
+ * - 走勢線用 /api/history 的「真實近 N 日每日收盤」+ 尾端接上鏈上即時價(每檔各自真實、不再是合成波)。
+ *   取不到歷史時才退回合成走勢(series),不致崩。
  */
 export function usePrices(): Market {
   const twse = useTwse()
+  const history = useTwseHistory()
   const { data } = useReadContracts({
     contracts: CATALOG.map((s) => ({
       address: ORACLE.address,
@@ -86,12 +88,16 @@ export function usePrices(): Market {
         // /api/twse 提供基準帶(昨收/開/高/低);MIS 被擋時自動走每日收盤後備(IP 安全)
         const t = twse[s.code]
         const hasBase = !!t && t.close > 0
-        if (!oraclePrice && !hasBase) {
-          next[s.code] = cur // 鏈上與 TWSE 都還沒到 → 維持現值,不亂跳
+        // /api/history 提供真實近 N 日每日收盤
+        const realCloses = history[s.code]
+        const haveHist = !!realCloses && realCloses.length >= 2
+        if (!oraclePrice && !hasBase && !haveHist) {
+          next[s.code] = cur // 三個來源都還沒到 → 維持現值,不亂跳
           return
         }
-        const live = oraclePrice || t!.close // 當前值:優先鏈上價,退而求其次用 TWSE 收盤
-        const prevClose = hasBase ? t!.close - t!.change : cur.prev // 昨收基準(日線)
+        const histLast = haveHist ? realCloses[realCloses.length - 1] : 0
+        const live = oraclePrice || (hasBase ? t!.close : histLast) || cur.price // 當前值:優先鏈上價
+        const prevClose = hasBase ? t!.close - t!.change : haveHist ? histLast : cur.prev // 昨收基準
         const pct = prevClose ? ((live - prevClose) / prevClose) * 100 : cur.pct
         const open = (hasBase && t!.open > 0 ? t!.open : 0) || prevClose || live
         const hi = Math.max(hasBase ? t!.high : 0, live, open, prevClose)
@@ -100,13 +106,13 @@ export function usePrices(): Market {
           price: live,
           prev: prevClose,
           pct,
-          // 從「當日開盤 → 鏈上即時價」畫整天走勢線(決定性、不亂跳)
-          hist: series(open, live, hi, lo),
+          // 真實近 N 日收盤 + 尾端接鏈上即時價;無歷史才退回合成走勢
+          hist: haveHist ? [...realCloses, live] : series(open, live, hi, lo),
         }
       })
       return next
     })
-  }, [data, twse])
+  }, [data, twse, history])
 
   return market
 }

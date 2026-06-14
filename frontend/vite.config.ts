@@ -3,24 +3,34 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath, URL } from 'node:url'
 
-// 讓 /api/twse 在本機 `npm run dev` 也能運作(平常它是 Vercel serverless,dev 不會跑)。
-// 直接重用 api/twse.js 的 getQuotes(),本機/線上行為一致 → 走勢線不再是平的。
+// 讓 /api/twse 與 /api/history 在本機 `npm run dev` 也能運作(平常它們是 Vercel serverless,dev 不會跑)。
+// 直接重用 api/*.js 的 getQuotes()/getHistory(),本機/線上行為一致 → 走勢線不再是平的/合成的。
 function twseDevApi(): Plugin {
   return {
     name: 'twse-dev-api',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (!req.url || !req.url.startsWith('/api/twse')) return next()
-        try {
-          // @ts-ignore - api/twse.js 是純 JS 模組,無 .d.ts 型別宣告
-          const { getQuotes } = await import('./api/twse.js')
-          const data = await getQuotes()
+        if (!req.url) return next()
+        const send = (data: unknown) => {
           res.setHeader('Content-Type', 'application/json')
           res.end(JSON.stringify(data))
+        }
+        try {
+          if (req.url.startsWith('/api/twse')) {
+            // @ts-ignore - api/twse.js 是純 JS 模組,無 .d.ts 型別宣告
+            const { getQuotes } = await import('./api/twse.js')
+            return send(await getQuotes())
+          }
+          if (req.url.startsWith('/api/history')) {
+            // @ts-ignore - api/history.js 是純 JS 模組,無 .d.ts 型別宣告
+            const { getHistory } = await import('./api/history.js')
+            return send(await getHistory())
+          }
         } catch {
           res.statusCode = 200
-          res.end('{}')
+          return res.end('{}')
         }
+        next()
       })
     },
   }

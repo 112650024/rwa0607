@@ -22,7 +22,8 @@
    - **Logo 不再是地球**:多來源抓取 Clearbit → DuckDuckGo → 網站 favicon,全失敗才用品牌色文字徽記;移除了「查無 logo 會回傳地球圖」的 Google favicon。
    - **鏈上驗證動畫**:新 `frontend/src/components/TxOverlay.tsx`(framer-motion)—— 串接區塊脈動 + 三步驟進度(簽署→驗證→上鏈)+ 成功打勾繪製 + Etherscan 連結,取代原本的轉圈圈 toast。
 4. **Dashboard 指標卡改真實鏈上讀取**:4 張指標卡(鏈上資產總額/TWD 儲備率/借貸池 TVL/IPO 案數)不再寫死,改 `useProtocolStats()` 一次 multicall 真讀鏈上(`useChain.ts`、`Dashboard.tsx`)。IPO 卡因已結束,改顯示「累計認購案數」。
-5. **漲跌%/走勢線改鏈上推算**:終點改以**鏈上預言機價**為當前值,`/api/twse` 只當昨收/開高低基準(後備走 openapi 每日收盤,非 MIS、不限 IP)→ 線上 MIS 被擋也不再平線,顯示價與漲跌% 內部一致(原 TODO-2 已完成)。
+5. **漲跌%改鏈上推算**:漲跌% 改以**鏈上預言機價**為當前值對昨收推算,`/api/twse` 只當基準(後備走 openapi 每日收盤,非 MIS、不限 IP)→ 線上 MIS 被擋也不影響,顯示價與漲跌% 內部一致(原 TODO-2 已完成)。
+6. **走勢線改真實近 N 日收盤**:新增 `frontend/api/history.js`(`/api/history`,抓 TWSE STOCK_DAY 每日收盤、12h 快取)+ `useTwseHistory()`,走勢線改畫每檔**真實近一個月收盤** + 尾端接鏈上即時價(取代原本「每檔長得一樣的合成正弦波」);抓不到歷史才退回合成走勢。
 
 ---
 
