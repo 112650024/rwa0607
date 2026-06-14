@@ -6,7 +6,19 @@ import { useWallet } from "@/lib/wallet"
 import { useTx } from "@/hooks/useTx"
 import { TWD, readUrl, addrUrl } from "@/lib/contracts"
 import { fmtNum } from "@/lib/format"
-import { ShieldCheck, Building2, FileCheck2, ExternalLink, RefreshCw } from "lucide-react"
+import { ShieldCheck, Building2, FileCheck2, ExternalLink, RefreshCw, Scale } from "lucide-react"
+
+// 金管會穩定幣監理要點 → 本合約鏈上對應(每項都在 Etherscan「Read Contract」可查驗)
+const FSC_POINTS: { law: string; impl: string; fields: string[] }[] = [
+  { law: "發行人資格與核准制", impl: "鏈上揭露發行人主體與牌照/核准號,可對照主管機關核准名單", fields: ["issuerName", "licenseNo"] },
+  { law: "100% 法幣足額儲備", impl: "每筆發行同步增提儲備,儲備覆蓋率即時可算(10000 bps = 100%)", fields: ["reserveAttestedTWD", "reserveRatioBps()", "isFullyReserved()", "totalSupply()"] },
+  { law: "儲備區隔與合格保管", impl: "揭露保管銀行/信託,儲備與發行人自有資產分離", fields: ["custodianBank"] },
+  { law: "定期儲備證明(PoR)與查核揭露", impl: "由 ATTESTOR 角色簽署上鏈,附時間戳與月報/審計文件雜湊", fields: ["lastAttestationAt", "lastAttestationDocHash", "auditReportURI"] },
+  { law: "持有人面額贖回權", impl: "任何持有人可鏈上申請贖回、燒幣換回法幣,贖回筆數可查", fields: ["requestRedemption()", "redemptionCount()"] },
+  { law: "資訊揭露與使用條款", impl: "公開審計/月報與使用條款連結", fields: ["auditReportURI", "termsURI"] },
+  { law: "法遵控制(AML/CFT・凍結・暫停)", impl: "法遵角色可凍結個別地址或全面暫停流通,轉帳時合約自動攔截", fields: ["frozen(address)", "paused()", "COMPLIANCE_ROLE"] },
+  { law: "權責分離治理", impl: "AccessControl 分權:發行人 admin / 儲備簽證 attestor / 法遵 compliance", fields: ["DEFAULT_ADMIN_ROLE", "ATTESTOR_ROLE", "hasRole()"] },
+]
 
 function Dial({ pct }: { pct: number }) {
   const r = 52
@@ -190,6 +202,45 @@ export default function Stablecoin() {
             <span className="text-foreground"> 全面暫停 </span>流通,皆記錄於鏈上事件。
           </div>
         </div>
+      </div>
+
+      {/* 對標金管會穩定幣監理要點(每項皆可在 Etherscan Read Contract 查驗) */}
+      <div className="glass mt-4 rounded-2xl p-5">
+        <h3 className="flex flex-wrap items-center gap-2 font-semibold">
+          <Scale className="size-4 text-primary" /> 對標金管會穩定幣監理要點
+          <span className="text-xs font-normal text-muted-foreground">每一項都在 Etherscan「Read Contract」可自行查驗</span>
+        </h3>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          本平台以智能合約對標金管會《虛擬資產服務法》／穩定幣監理規範的核心要求:下表每一條都對應合約上一個
+          <span className="text-foreground"> 公開可讀 </span>的欄位或函式,任何人都能在鏈上查驗,不需信任發行人片面說法。
+          <span className="text-foreground">(本作品為測試網 Demo,示範法規精神,非真實持牌發行。)</span>
+        </p>
+        <div className="mt-4 divide-y divide-border">
+          {FSC_POINTS.map((p, i) => (
+            <div key={p.law} className="grid gap-2 py-3 sm:grid-cols-[1.1fr_1.5fr_1.3fr] sm:items-start">
+              <div className="flex items-start gap-2 text-sm font-semibold">
+                <span className="font-mono-num text-primary">{String(i + 1).padStart(2, "0")}</span>
+                {p.law}
+              </div>
+              <div className="text-xs leading-relaxed text-muted-foreground">{p.impl}</div>
+              <div className="flex flex-wrap gap-1">
+                {p.fields.map((f) => (
+                  <code key={f} className="rounded-md bg-primary/10 px-1.5 py-0.5 font-mono-num text-[11px] text-primary ring-1 ring-primary/20">
+                    {f}
+                  </code>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <a
+          href={readUrl(TWD.address)}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-4 inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+        >
+          打開 Etherscan「Read Contract」逐項查驗這些欄位 <ExternalLink className="size-3.5" />
+        </a>
       </div>
     </div>
   )

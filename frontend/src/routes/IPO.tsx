@@ -66,7 +66,7 @@ function OfferingCard({ id }: { id: number }) {
   const estShares = pos ? Number(pos[1]) / 1e18 : 0
   const didClaim = pos ? pos[3] : false
 
-  const statusLabel = ["即將開始", "認購中", "待定案", "已定案"][status]
+  const statusLabel = ["即將開始", "認購中", "已結束", "已定案"][status]
   const isUsd = stock?.code === "SPACEX" // SpaceX 以美元計價顯示
 
   const subscribe = async () => {
