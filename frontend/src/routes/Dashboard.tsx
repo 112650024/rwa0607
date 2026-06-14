@@ -1,7 +1,7 @@
 import { motion } from "framer-motion"
 import { Link } from "react-router-dom"
 import { CATALOG } from "@/lib/catalog"
-import { usePrices } from "@/hooks/useChain"
+import { usePrices, useProtocolStats } from "@/hooks/useChain"
 import { StockLogo } from "@/components/StockLogo"
 import { Sparkline } from "@/components/Sparkline"
 import { MarketTicker } from "@/components/MarketTicker"
@@ -52,6 +52,7 @@ function Stat({
 
 export default function Dashboard() {
   const market = usePrices()
+  const stats = useProtocolStats(market)
   const flag = CATALOG[0]
   const fl = market[flag.code]
   const up = fl.pct >= 0
@@ -114,10 +115,10 @@ export default function Dashboard() {
 
       {/* 指標卡 */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat i={0} icon={Landmark} accent="jade" label="鏈上資產總額" value={fmtTWD(128_400_000)} sub="代幣化台股 + TWD" />
-        <Stat i={1} icon={ShieldCheck} accent="gold" label="TWD 儲備率" value="100.0%" sub="法幣足額擔保" />
-        <Stat i={2} icon={Landmark} accent="jade" label="借貸池 TVL" value={fmtTWD(24_800_000)} sub="可借 / 出借" />
-        <Stat i={3} icon={Rocket} accent="gold" label="進行中 IPO" value="1 檔" sub="新股認購中" />
+        <Stat i={0} icon={Landmark} accent="jade" label="鏈上資產總額" value={stats.ready ? fmtTWD(stats.totalAssets) : "—"} sub="代幣化台股 + TWD" />
+        <Stat i={1} icon={ShieldCheck} accent="gold" label="TWD 儲備率" value={stats.ready ? `${stats.reserveRatio.toFixed(1)}%` : "—"} sub="法幣足額擔保" />
+        <Stat i={2} icon={Landmark} accent="jade" label="借貸池 TVL" value={stats.ready ? fmtTWD(stats.tvl) : "—"} sub="可借 / 出借" />
+        <Stat i={3} icon={Rocket} accent="gold" label="IPO 認購案" value={stats.ready ? `${stats.ipoCount} 檔` : "—"} sub="累計開案數" />
       </section>
 
       {/* 跑馬燈 */}

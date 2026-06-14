@@ -21,6 +21,8 @@
    - **IPO「SpaceX」改美元計價**:顯示 `US$ 135 ≈ NT$ 4,388 / 股`(匯率常數 `USD_TWD` 在 `frontend/src/routes/IPO.tsx` 可調)。
    - **Logo 不再是地球**:多來源抓取 Clearbit → DuckDuckGo → 網站 favicon,全失敗才用品牌色文字徽記;移除了「查無 logo 會回傳地球圖」的 Google favicon。
    - **鏈上驗證動畫**:新 `frontend/src/components/TxOverlay.tsx`(framer-motion)—— 串接區塊脈動 + 三步驟進度(簽署→驗證→上鏈)+ 成功打勾繪製 + Etherscan 連結,取代原本的轉圈圈 toast。
+4. **Dashboard 指標卡改真實鏈上讀取**:4 張指標卡(鏈上資產總額/TWD 儲備率/借貸池 TVL/IPO 案數)不再寫死,改 `useProtocolStats()` 一次 multicall 真讀鏈上(`useChain.ts`、`Dashboard.tsx`)。IPO 卡因已結束,改顯示「累計認購案數」。
+5. **漲跌%/走勢線改鏈上推算**:終點改以**鏈上預言機價**為當前值,`/api/twse` 只當昨收/開高低基準(後備走 openapi 每日收盤,非 MIS、不限 IP)→ 線上 MIS 被擋也不再平線,顯示價與漲跌% 內部一致(原 TODO-2 已完成)。
 
 ---
 
@@ -30,9 +32,8 @@
    到 https://rwa0607.vercel.app 檢查:走勢線有曲線、IPO 顯示美元、買入有新動畫、logo 不是地球。
    Vercel 若有連 GitHub 會自動部署;沒有的話 → `cd frontend && npx vercel --prod --yes`。
 
-2. **【可能要修】MIS 在 Vercel 線上版可能被擋**
-   MIS API 有時限台灣 IP。若**線上版**漲跌%/走勢線又變平(本機正常、線上不行),代表 Vercel 伺服器 IP 被 MIS 擋 → 它會**自動退回每日收盤**(價格本身仍即時,因為價格來自鏈上 feeder,不受影響)。
-   要線上也即時 → 把 `/api/twse` 的漲跌%/走勢線改成「**用鏈上預言機價推算**」,不依賴 MIS。(**尚未做**)
+2. ~~**MIS 在 Vercel 線上版可能被擋**~~ ✅ **已解決(2026-06-14)**
+   漲跌%/走勢線已改用**鏈上預言機價**推算,`/api/twse` 只當基準帶且後備走 openapi 每日收盤(非 MIS、不限 IP)。線上即使 MIS 被擋也不會變平線,無需再依賴 MIS。
 
 3. **【Demo 當天必做】啟動 feeder 餵即時價**
    開**新**終端機 → `cd C:\Users\lab643\Desktop\rwa0607\onchain` → `npm run feed:sepolia`。
@@ -40,7 +41,7 @@
 
 4. **【選配微調】交易動畫**:`frontend/src/components/TxOverlay.tsx` 可調速度/顏色/步驟文字。
 
-5. **【沿用既有 TODO】** 見 HANDOVER.md §8:WalletConnect projectId(手機掃碼)、Dashboard 部分寫死數字、Uniswap 池流動性薄、AI 估值模型尚未實作等。
+5. **【沿用既有 TODO】** 見 HANDOVER.md §8:WalletConnect projectId(手機掃碼)、Uniswap 池流動性薄、AI 估值模型尚未實作等。(Dashboard 寫死數字已於本次解決)
 
 ---
 

@@ -278,7 +278,7 @@ node scripts/uniswap_pool.js   # 建 Uniswap 池(部署後跑一次)
 
 **工程 / 體驗**
 6. **WalletConnect 用佔位 projectId**(`formosax_demo_projectid`)→ 手機掃碼登入無法用,只有 MetaMask(injected)可用。修法:到 cloud.walletconnect.com 申請,設 `frontend/.env` 的 `VITE_WC_PROJECT_ID`。
-7. **Dashboard 指標卡部分數字是寫死示意**(鏈上資產總額/TVL 等)→ 可改成真的讀鏈上彙總。
+7. ~~**Dashboard 指標卡部分數字是寫死示意**(鏈上資產總額/TVL 等)~~ ✅ **已於 2026-06-14 解決**:改 `useProtocolStats()`(`useChain.ts`)一次 multicall 真讀鏈上(TWD 流通量/儲備率、`LendingPool.getPoolStats` 的 TVL、`StockIPO.offeringCount`、各台股市值)。
 8. **裝了沒用到的套件**:`@antv/g2`、`gsap`(原規劃做 AntV 進階圖表 + GSAP 捲動動畫,未完成)→ 可移除或補做(原計畫的 Portfolio 進階儀表板沒做)。
 9. **沒有前端自動化測試**;只有合約測試(`npx hardhat test`)。
 10. **單點控管**:部署者一個錢包(`0x50d9…`)同時是 owner/admin/feeder。正式化應拆角色 + 多簽 + 時間鎖。

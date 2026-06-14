@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useAccount, useReadContract, useReadContracts } from "wagmi"
-import { TWD, ORACLE, sym32 } from "@/lib/contracts"
+import { TWD, ORACLE, LENDING, IPO, STOCKS, stockContract, sym32 } from "@/lib/contracts"
 import { CATALOG } from "@/lib/catalog"
 import { fmtNum } from "@/lib/format"
 import { useTx } from "./useTx"
@@ -49,8 +49,9 @@ function series(prev: number, close: number, high: number, low: number, n = 28):
 }
 
 /**
- * 台股行情:價格 = 鏈上預言機價(≈ TWSE 真實收盤,精準對得上),
- * 漲跌% 與走勢線用真實 TWSE 開高低收。台股免費資料為「日收盤」,故盤中不跳動(精準優先)。
+ * 台股行情:價格、漲跌% 與走勢線終點皆以「鏈上預言機價」為當前值(feeder 餵 TWSE 即時成交價),
+ * /api/twse 只提供基準帶(昨收/開/高/低)。其後備為 STOCK_DAY_ALL(openapi,非 MIS、不限台灣 IP),
+ * 故線上即使 MIS 被擋,漲跌%/走勢線仍由鏈上價驅動、不會變平線,且顯示價與漲跌% 內部一致。
  */
 export function usePrices(): Market {
   const twse = useTwse()
@@ -75,27 +76,32 @@ export function usePrices(): Market {
       const next: Market = {}
       CATALOG.forEach((s, i) => {
         const cur = prevM[s.code]
-        // 鏈上預言機價(顯示用,精準)
-        let price = cur.price
+        // 鏈上預言機價(顯示與推算的「當前值」,精準)
+        let oraclePrice = 0
         const r = data?.[i]
         if (r?.status === "success" && Array.isArray(r.result)) {
           const [p, dec] = r.result as unknown as [bigint, number, bigint]
-          price = Number(p) / 10 ** Number(dec)
+          oraclePrice = Number(p) / 10 ** Number(dec)
         }
-        // 真實漲跌與走勢線(TWSE)
+        // /api/twse 提供基準帶(昨收/開/高/低);MIS 被擋時自動走每日收盤後備(IP 安全)
         const t = twse[s.code]
-        if (t && t.close > 0) {
-          const prevClose = t.close - t.change
-          const pct = prevClose ? (t.change / prevClose) * 100 : 0
-          next[s.code] = {
-            price: price || t.close,
-            prev: prevClose,
-            pct,
-            // 從「當日開盤 → 收盤」畫整天走勢線(決定性、不亂跳)
-            hist: series(t.open || prevClose || t.close, t.close, t.high, t.low),
-          }
-        } else {
-          next[s.code] = { price, prev: cur.prev, pct: cur.pct, hist: cur.hist }
+        const hasBase = !!t && t.close > 0
+        if (!oraclePrice && !hasBase) {
+          next[s.code] = cur // 鏈上與 TWSE 都還沒到 → 維持現值,不亂跳
+          return
+        }
+        const live = oraclePrice || t!.close // 當前值:優先鏈上價,退而求其次用 TWSE 收盤
+        const prevClose = hasBase ? t!.close - t!.change : cur.prev // 昨收基準(日線)
+        const pct = prevClose ? ((live - prevClose) / prevClose) * 100 : cur.pct
+        const open = (hasBase && t!.open > 0 ? t!.open : 0) || prevClose || live
+        const hi = Math.max(hasBase ? t!.high : 0, live, open, prevClose)
+        const lo = Math.min(...[hasBase ? t!.low : Infinity, live, open, prevClose].filter((x) => x > 0))
+        next[s.code] = {
+          price: live,
+          prev: prevClose,
+          pct,
+          // 從「當日開盤 → 鏈上即時價」畫整天走勢線(決定性、不亂跳)
+          hist: series(open, live, hi, lo),
         }
       })
       return next
@@ -103,4 +109,54 @@ export function usePrices(): Market {
   }, [data, twse])
 
   return market
+}
+
+export type ProtocolStats = {
+  totalAssets: number // 鏈上資產總額(TWD):代幣化台股市值 + 流通 TWD
+  reserveRatio: number // TWD 儲備率(%)
+  tvl: number // 借貸池 TVL(TWD)
+  ipoCount: number // IPO 認購案累計檔數
+  ready: boolean // 鏈上資料是否已就緒
+}
+
+/**
+ * Dashboard 指標卡的真實鏈上彙總(取代原本寫死的示意數字)。
+ * 一次 multicall 讀:TWD 流通量/儲備率、借貸池 TVL、IPO 案數、各台股流通股數;
+ * 台股市值 = Σ 流通股數 × 預言機價(沿用 usePrices 的 market)。
+ */
+export function useProtocolStats(market: Market): ProtocolStats {
+  const { data } = useReadContracts({
+    contracts: [
+      { ...TWD, functionName: "totalSupply" },
+      { ...TWD, functionName: "reserveRatioBps" },
+      { ...LENDING, functionName: "getPoolStats" },
+      { ...IPO, functionName: "offeringCount" },
+      ...STOCKS.map((s) => ({ ...stockContract(s.code)!, functionName: "totalSupply" })),
+    ],
+    query: { refetchInterval: 15000 },
+  })
+
+  const ok = (i: number) => data?.[i]?.status === "success"
+  const big = (i: number) => (ok(i) ? (data![i].result as bigint) : 0n)
+
+  const twdSupply = Number(big(0)) / 1e6
+  const reserveRatio = Number(big(1)) / 100
+  const pool = ok(2) ? (data![2].result as readonly bigint[]) : undefined
+  const tvl = pool ? Number(pool[2]) / 1e6 : 0 // index 2 = totalLiquidity(cash + borrows)
+  const ipoCount = Number(big(3))
+
+  let stockValue = 0
+  STOCKS.forEach((s, idx) => {
+    if (!ok(4 + idx)) return
+    const supply = Number(data![4 + idx].result as bigint) / 1e18
+    stockValue += supply * (market[s.code]?.price || 0)
+  })
+
+  return {
+    totalAssets: twdSupply + stockValue,
+    reserveRatio,
+    tvl,
+    ipoCount,
+    ready: ok(0),
+  }
 }
