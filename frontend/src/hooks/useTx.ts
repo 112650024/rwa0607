@@ -1,8 +1,7 @@
 import { useWriteContract } from "wagmi"
 import { waitForTransactionReceipt } from "wagmi/actions"
-import { toast } from "sonner"
 import { wagmiConfig } from "@/lib/wagmi"
-import { txUrl } from "@/lib/contracts"
+import { txStore } from "@/lib/txStore"
 import type { Abi } from "viem"
 
 export type TxParams = {
@@ -12,7 +11,7 @@ export type TxParams = {
   args?: readonly unknown[]
 }
 
-/** 送出交易 → toast 等待 → 完成附 Etherscan 連結。回傳交易 hash。 */
+/** 送出交易 → 驅動全域 <TxOverlay/> 鏈上驗證動畫 → 完成附 Etherscan。回傳交易 hash。 */
 export function useTx() {
   const { writeContractAsync, isPending } = useWriteContract()
 
@@ -20,19 +19,16 @@ export function useTx() {
     params: TxParams,
     msg?: { pending?: string; success?: string },
   ): Promise<`0x${string}`> => {
-    const t = toast.loading(msg?.pending ?? "交易送出,等待錢包確認…")
+    txStore.start(msg?.pending ?? "處理交易中")
     try {
       const hash = await writeContractAsync(params as never)
-      toast.loading("等待區塊確認…", { id: t })
+      txStore.pending(hash)
       await waitForTransactionReceipt(wagmiConfig, { hash })
-      toast.success(msg?.success ?? "交易完成", {
-        id: t,
-        action: { label: "Etherscan ↗", onClick: () => window.open(txUrl(hash), "_blank") },
-      })
+      txStore.success(hash)
       return hash
     } catch (e) {
       const err = e as { shortMessage?: string; message?: string }
-      toast.error("交易取消 / 失敗:" + (err.shortMessage ?? err.message ?? ""), { id: t })
+      txStore.error(err.shortMessage ?? err.message ?? "交易已取消")
       throw e
     }
   }

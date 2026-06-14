@@ -91,7 +91,8 @@ export function usePrices(): Market {
             price: price || t.close,
             prev: prevClose,
             pct,
-            hist: series(prevClose || t.close, t.close, t.high, t.low),
+            // 從「當日開盤 → 收盤」畫整天走勢線(決定性、不亂跳)
+            hist: series(t.open || prevClose || t.close, t.close, t.high, t.low),
           }
         } else {
           next[s.code] = { price, prev: cur.prev, pct: cur.pct, hist: cur.hist }

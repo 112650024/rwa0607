@@ -9,6 +9,7 @@ import "./index.css"
 import App from "./App.tsx"
 import { wagmiConfig } from "@/lib/wagmi"
 import { Toaster } from "@/components/ui/sonner"
+import { TxOverlay } from "@/components/TxOverlay"
 
 const queryClient = new QueryClient()
 
@@ -31,5 +32,6 @@ createRoot(document.getElementById("root")!).render(
       </QueryClientProvider>
     </WagmiProvider>
     <Toaster position="bottom-center" theme="dark" richColors />
+    <TxOverlay />
   </StrictMode>,
 )

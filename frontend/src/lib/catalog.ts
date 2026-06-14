@@ -19,11 +19,21 @@ export const CATALOG: Stock[] = [
   { code: "2881", name: "富邦金", symbol: "dFBN", fallback: 92, tint: "#5aa800,#356200", domain: "fubon.com" },
   { code: "2603", name: "長榮", symbol: "dEVG", fallback: 195, tint: "#0a7a3f,#054d27", domain: "evergreen-marine.com" },
   { code: "3008", name: "大立光", symbol: "dLAR", fallback: 2520, tint: "#5b6bff,#2f3aa8", domain: "largan.com.tw" },
-  { code: "0050", name: "元大台灣50", symbol: "d0050", fallback: 190, tint: "#e2231a,#8f140e" },
+  { code: "0050", name: "元大台灣50", symbol: "d0050", fallback: 190, tint: "#e2231a,#8f140e", domain: "yuantaetfs.com" },
   { code: "2891", name: "中信金", symbol: "dCTBC", fallback: 39, tint: "#0033a0,#001f63", domain: "ctbcbank.com" },
 ]
 
-export const logoUrl = (s: Stock) =>
-  s.domain ? `https://www.google.com/s2/favicons?sz=128&domain=${s.domain}` : ""
+/**
+ * 多來源 logo 候選(StockLogo 會依序嘗試,全失敗才用文字徽記)。
+ * 刻意避開 Google favicon —— 它查無 logo 時會回傳「地球」預設圖,蓋掉品牌徽記。
+ */
+export const logoCandidates = (s: Stock): string[] =>
+  s.domain
+    ? [
+        `https://logo.clearbit.com/${s.domain}`,
+        `https://icons.duckduckgo.com/ip3/${s.domain}.ico`,
+        `https://${s.domain}/favicon.ico`,
+      ]
+    : []
 
 export const stockByCode = (code: string) => CATALOG.find((s) => s.code === code)

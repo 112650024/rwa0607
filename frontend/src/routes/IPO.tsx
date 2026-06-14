@@ -16,6 +16,11 @@ const IPO_BRAND: Record<string, Stock> = {
   "0050": { code: "SPACEX", name: "SpaceX", symbol: "dSPACEX", fallback: 0, tint: "#0b3d91,#05070f", domain: "spacex.com" },
 }
 
+// SpaceX 認購以「美元」計價(demo);USD→TWD 為顯示用固定匯率(無台幣預言機)
+const SPACEX_USD = 135
+const USD_TWD = 32.5
+const fmtUSD = (n: number) => "US$ " + n.toLocaleString("en-US")
+
 function countdown(end: number) {
   const s = end - Math.floor(Date.now() / 1000)
   if (s <= 0) return "已結束"
@@ -62,6 +67,7 @@ function OfferingCard({ id }: { id: number }) {
   const didClaim = pos ? pos[3] : false
 
   const statusLabel = ["即將開始", "認購中", "待定案", "已定案"][status]
+  const isUsd = stock?.code === "SPACEX" // SpaceX 以美元計價顯示
 
   const subscribe = async () => {
     if (!connected) return toast.error("請先連接錢包")
@@ -107,7 +113,14 @@ function OfferingCard({ id }: { id: number }) {
 
       <div className="mt-4 flex items-center justify-between text-sm">
         <span className="text-muted-foreground">認購價</span>
-        <span className="font-mono-num font-semibold">{fmtTWD(price)} / 股</span>
+        {isUsd ? (
+          <span className="font-mono-num font-semibold">
+            {fmtUSD(SPACEX_USD)}
+            <span className="ml-1 font-normal text-muted-foreground">≈ {fmtTWD(Math.round(SPACEX_USD * USD_TWD))}</span> / 股
+          </span>
+        ) : (
+          <span className="font-mono-num font-semibold">{fmtTWD(price)} / 股</span>
+        )}
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/5">
         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: over ? "var(--accent)" : "var(--primary)" }} />
