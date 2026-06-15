@@ -33,7 +33,25 @@ const exch = (code) => `tse_${code}.tw`; // 上市;若加上櫃股票需改 otc_
 
 const chunk = (arr, n) => { const o = []; for (let i = 0; i < arr.length; i += n) o.push(arr.slice(i, i + n)); return o; };
 
-// 1) MIS 即時成交價(最準)。回傳 { code: price }
+// 從 MIS 單檔資料挑「當前價」:成交價 z → 前筆 pz → 最佳買賣價中間價(盤中 z 暫無成交時最關鍵)
+//                              → 今日開盤 o → 昨收 y。避免盤中 z 為「-」時誤用昨收(看起來像沒更新)。
+function pickRealtimePrice(s) {
+  const first = (str) => parseFloat(String(str || "").split("_")[0]);
+  const z = parseFloat(s.z);
+  if (isFinite(z) && z > 0) return z;
+  const pz = parseFloat(s.pz);
+  if (isFinite(pz) && pz > 0) return pz;
+  const bid = first(s.b), ask = first(s.a);
+  if (isFinite(bid) && bid > 0 && isFinite(ask) && ask > 0) return (bid + ask) / 2; // 委買/委賣中間價
+  if (isFinite(bid) && bid > 0) return bid;
+  if (isFinite(ask) && ask > 0) return ask;
+  const o = parseFloat(s.o);
+  if (isFinite(o) && o > 0) return o;
+  const y = parseFloat(s.y);
+  return isFinite(y) && y > 0 ? y : NaN;
+}
+
+// 1) MIS 即時價(成交價優先,盤中無成交退買賣中間價)。回傳 { code: price }
 async function fetchRealtime(codes) {
   const out = {};
   for (const grp of chunk(codes, MIS_CHUNK)) {
@@ -46,9 +64,8 @@ async function fetchRealtime(codes) {
       });
       if (!data || data.rtcode !== "0000" || !Array.isArray(data.msgArray)) continue;
       for (const s of data.msgArray) {
-        const z = parseFloat(s.z), y = parseFloat(s.y);
-        const px = isFinite(z) && z > 0 ? z : (isFinite(y) && y > 0 ? y : NaN); // 成交價優先,否則昨收
-        if (isFinite(px)) out[s.c] = px;
+        const px = pickRealtimePrice(s);
+        if (isFinite(px) && px > 0) out[s.c] = px;
       }
     } catch (e) { console.warn("  MIS 批次失敗:", e.message.slice(0, 60)); }
   }

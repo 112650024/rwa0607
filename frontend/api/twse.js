@@ -4,7 +4,23 @@
 // getQuotes() 供 Vercel handler 與 Vite dev 外掛(vite.config.ts)共用,本機/線上行為一致。
 const CODES = ["2330", "2317", "2454", "2308", "2303", "2412", "2882", "2881", "2603", "3008", "0050", "2891"]
 
-// 1) MIS 即時(最準)
+// 從 MIS 單檔挑「當前價」:成交價 z → 前筆 pz → 最佳買賣價中間價(盤中 z 為「-」時最關鍵)→ 今日開盤 o。
+// 回 NaN 讓呼叫端決定是否退回昨收 y(避免盤中誤顯示昨收)。
+function pickMisPrice(s) {
+  const first = (str) => parseFloat(String(str || "").split("_")[0])
+  const z = parseFloat(s.z)
+  if (isFinite(z) && z > 0) return z
+  const pz = parseFloat(s.pz)
+  if (isFinite(pz) && pz > 0) return pz
+  const bid = first(s.b), ask = first(s.a)
+  if (isFinite(bid) && bid > 0 && isFinite(ask) && ask > 0) return (bid + ask) / 2
+  if (isFinite(bid) && bid > 0) return bid
+  if (isFinite(ask) && ask > 0) return ask
+  const o = parseFloat(s.o)
+  return isFinite(o) && o > 0 ? o : NaN
+}
+
+// 1) MIS 即時(成交價優先,盤中無成交退買賣中間價)
 async function fromMIS() {
   const ex_ch = CODES.map((c) => `tse_${c}.tw`).join("|")
   const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${ex_ch}&json=1&delay=0&_=${Date.now()}`
@@ -15,8 +31,8 @@ async function fromMIS() {
   if (!data || data.rtcode !== "0000" || !Array.isArray(data.msgArray)) throw new Error("mis bad")
   const out = {}
   for (const s of data.msgArray) {
-    const z = parseFloat(s.z), y = parseFloat(s.y), o = parseFloat(s.o)
-    const close = isFinite(z) && z > 0 ? z : y // 成交價優先,否則昨收
+    const y = parseFloat(s.y), o = parseFloat(s.o)
+    const close = pickMisPrice(s) || y // 即時價,真的都沒有才退昨收
     if (!isFinite(close) || close <= 0) continue
     out[s.c] = {
       close,
