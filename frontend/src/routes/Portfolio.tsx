@@ -9,6 +9,7 @@ import { StockLogo } from "@/components/StockLogo"
 import { stockByCode } from "@/lib/catalog"
 import { fmtTWD, fmtNum } from "@/lib/format"
 import { txUrl, addrUrl } from "@/lib/contracts"
+import { pnlFor } from "@/lib/costBasis"
 import { cn } from "@/lib/utils"
 
 const tintOf = (code: string) => stockByCode(code)?.tint.split(",")[0] ?? "var(--primary)"
@@ -48,7 +49,7 @@ function Donut({ segments, size = 196 }: { segments: Seg[]; size?: number }) {
   )
 }
 
-function PositionsTab({ holdings, twd, deposit, collateral, debt, netWorth }: ReturnType<typeof useHoldings>) {
+function PositionsTab({ holdings, twd, deposit, collateral, debt, netWorth, address }: ReturnType<typeof useHoldings> & { address?: string | null }) {
   const segments: Seg[] = []
   if (twd > 0) segments.push({ label: "TWD 現金", value: twd, color: "var(--accent)" })
   for (const h of holdings) segments.push({ label: stockByCode(h.code)?.name ?? h.code, value: h.value, color: tintOf(h.code) })
@@ -103,7 +104,7 @@ function PositionsTab({ holdings, twd, deposit, collateral, debt, netWorth }: Re
           ) : (
             <div className="divide-y divide-border">
               {holdings.map((h) => (
-                <PositionRow key={h.code} h={h} />
+                <PositionRow key={h.code} h={h} address={address} />
               ))}
             </div>
           )}
@@ -127,9 +128,10 @@ function Mini({ icon: Icon, label, value, accent }: { icon: typeof Wallet; label
   )
 }
 
-function PositionRow({ h }: { h: Holding }) {
+function PositionRow({ h, address }: { h: Holding; address?: string | null }) {
   const s = stockByCode(h.code)!
   const price = h.value / (h.shares || 1)
+  const pnl = pnlFor(address, h.code, h.shares, h.value)
   return (
     <div className="flex items-center gap-3 py-2.5">
       <StockLogo stock={s} size={32} />
@@ -139,7 +141,16 @@ function PositionRow({ h }: { h: Holding }) {
         </div>
         <div className="font-mono-num text-[11px] text-muted-foreground">{fmtNum(h.shares, 2)} 股 · {fmtTWD(price)}/股</div>
       </div>
-      <div className="font-mono-num text-sm font-bold">{fmtTWD(h.value)}</div>
+      <div className="text-right">
+        <div className="font-mono-num text-sm font-bold">{fmtTWD(h.value)}</div>
+        {pnl && (
+          <div className={cn("font-mono-num text-[11px]", pnl.pnl >= 0 ? "text-up" : "text-down")}>
+            {pnl.pnl >= 0 ? "+" : ""}
+            {fmtNum(pnl.pnl)} ({pnl.pnl >= 0 ? "+" : ""}
+            {pnl.pct.toFixed(1)}%)
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -198,12 +209,17 @@ function ActivityTab() {
 }
 
 export default function Portfolio() {
-  const { connected } = useWallet()
+  const { connected, address } = useWallet()
   const market = usePrices()
   const pf = useHoldings(market)
   const [tab, setTab] = useState<"positions" | "activity">("positions")
 
   const hf = pf.hfBps > 10n ** 12n ? Infinity : Number(pf.hfBps) / 10000
+  const pnls = pf.holdings.map((h) => pnlFor(address, h.code, h.shares, h.value))
+  const hasPnl = pnls.some((p) => p !== null)
+  const totalPnl = pnls.reduce((a, p) => a + (p?.pnl ?? 0), 0)
+  const totalBasis = pnls.reduce((a, p) => a + (p?.basis ?? 0), 0)
+  const totalPnlPct = totalBasis > 0 ? (totalPnl / totalBasis) * 100 : 0
 
   if (!connected) {
     return (
@@ -224,6 +240,15 @@ export default function Portfolio() {
           <div className="text-xs text-muted-foreground">總資產淨值(持倉 + 現金 + 出借 + 抵押 − 借款)</div>
           <div className="mt-1 font-mono-num text-3xl font-bold">{pf.ready ? fmtTWD(pf.netWorth) : "—"}</div>
         </div>
+        {hasPnl && (
+          <div>
+            <div className="text-xs text-muted-foreground">未實現損益(本機成本估算)</div>
+            <div className={cn("mt-1 font-mono-num text-2xl font-bold", totalPnl >= 0 ? "text-up" : "text-down")}>
+              {totalPnl >= 0 ? "+" : ""}
+              {fmtTWD(totalPnl)} <span className="text-base">({totalPnl >= 0 ? "+" : ""}{totalPnlPct.toFixed(1)}%)</span>
+            </div>
+          </div>
+        )}
         {pf.debt > 0 && (
           <div className="text-right">
             <div className="text-xs text-muted-foreground">借貸健康因子</div>
@@ -253,7 +278,7 @@ export default function Portfolio() {
         ))}
       </div>
 
-      {tab === "positions" ? <PositionsTab {...pf} /> : <ActivityTab />}
+      {tab === "positions" ? <PositionsTab {...pf} address={address} /> : <ActivityTab />}
     </div>
   )
 }

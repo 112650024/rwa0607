@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { Gauge, TrendingUp, TrendingDown } from "lucide-react"
+import { Gauge, TrendingUp, TrendingDown, Sparkles } from "lucide-react"
 import { PageHeader } from "@/components/PageHeader"
 import { StockLogo } from "@/components/StockLogo"
 import { CATALOG } from "@/lib/catalog"
@@ -8,7 +9,7 @@ import { computeRisk, type RiskMetrics } from "@/lib/risk"
 
 const riskColor = (s: number) => (s < 34 ? "var(--up)" : s < 67 ? "var(--accent)" : "var(--down)")
 
-function RiskCard({ stock, m, i }: { stock: (typeof CATALOG)[number]; m: RiskMetrics; i: number }) {
+function RiskCard({ stock, m, i, comment }: { stock: (typeof CATALOG)[number]; m: RiskMetrics; i: number; comment?: string }) {
   const up = m.momentumPct >= 0
   return (
     <motion.div
@@ -66,12 +67,42 @@ function RiskCard({ stock, m, i }: { stock: (typeof CATALOG)[number]; m: RiskMet
           <div className="mt-0.5 font-mono-num text-sm font-bold text-primary">{m.hasData ? `${(m.suggestedLtvBps / 100).toFixed(0)}%` : "—"}</div>
         </div>
       </div>
+
+      {comment && (
+        <div className="mt-3 flex items-start gap-1.5 border-t border-border pt-2.5 text-[11px] leading-relaxed text-muted-foreground">
+          <Sparkles className="mt-0.5 size-3 shrink-0 text-accent" />
+          <span>{comment}</span>
+        </div>
+      )}
     </motion.div>
   )
 }
 
 export default function Risk() {
   const history = useTwseHistory()
+  const [comments, setComments] = useState<Record<string, string>>({})
+
+  // 把量化指標送到 /api/valuation,讓 Claude 生一句評語(無 API key 則回空,優雅降級)
+  useEffect(() => {
+    const stocks = CATALOG.map((s) => {
+      const m = computeRisk(history[s.code])
+      return m.hasData
+        ? { code: s.code, name: s.name, riskScore: m.riskScore, annualVolPct: m.annualVolPct, momentumPct: m.momentumPct, suggestedLtvBps: m.suggestedLtvBps }
+        : null
+    }).filter(Boolean)
+    if (stocks.length < 3) return // 等歷史資料到齊再問
+    let alive = true
+    fetch("/api/valuation", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ stocks }),
+    })
+      .then((r) => (r.ok ? r.json() : { comments: {} }))
+      .then((d) => { if (alive) setComments(d.comments || {}) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [history])
+
   return (
     <div>
       <PageHeader
@@ -88,7 +119,7 @@ export default function Risk() {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {CATALOG.map((s, i) => (
-          <RiskCard key={s.code} stock={s} m={computeRisk(history[s.code])} i={i} />
+          <RiskCard key={s.code} stock={s} m={computeRisk(history[s.code])} i={i} comment={comments[s.code]} />
         ))}
       </div>
     </div>

@@ -9,6 +9,7 @@ import { useTx } from "@/hooks/useTx"
 import { StockLogo } from "@/components/StockLogo"
 import { PageHeader } from "@/components/PageHeader"
 import { TWD, stockContract } from "@/lib/contracts"
+import { recordBuy, recordSell } from "@/lib/costBasis"
 import { wagmiConfig } from "@/lib/wagmi"
 import { fmtNum, fmtTWD } from "@/lib/format"
 import { ArrowLeftRight, ShieldCheck } from "lucide-react"
@@ -16,7 +17,7 @@ import { cn } from "@/lib/utils"
 
 export default function Trade() {
   const market = usePrices()
-  const { connected } = useWallet()
+  const { connected, address } = useWallet()
   const { run } = useTx()
   const [code, setCode] = useState(CATALOG[0].code)
   const [shares, setShares] = useState(10)
@@ -58,8 +59,10 @@ export default function Trade() {
         const twdRaw = pps * BigInt(shares)
         await run({ address: TWD.address, abi: TWD.abi, functionName: "approve", args: [sc.address, twdRaw] }, { pending: "步驟 1/2:授權 TWD…", success: "已授權" })
         await run({ address: sc.address, abi: sc.abi, functionName: "mint", args: [twdRaw] }, { pending: "步驟 2/2:買入鑄造…", success: `已買入 ${shares} 股 ${stock.symbol}` })
+        recordBuy(address, code, shares, Number(twdRaw) / 1e6) // 記成本(供投資組合算損益)
       } else {
         await run({ address: sc.address, abi: sc.abi, functionName: "redeem", args: [BigInt(shares) * 10n ** 18n] }, { pending: "贖回中…", success: `已贖回 ${shares} 股 ${stock.symbol}` })
+        recordSell(address, code, shares)
       }
     } catch {
       /* toast 已處理 */

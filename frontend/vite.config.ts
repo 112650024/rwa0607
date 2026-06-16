@@ -26,6 +26,30 @@ function twseDevApi(): Plugin {
             const { getHistory } = await import('./api/history.js')
             return send(await getHistory())
           }
+          if (req.url.startsWith('/api/valuation')) {
+            if (req.method !== 'POST') {
+              res.statusCode = 405
+              return send({ comments: {} })
+            }
+            const chunks: Buffer[] = []
+            req.on('data', (c: Buffer) => chunks.push(c))
+            req.on('end', async () => {
+              let stocks: unknown[] = []
+              try {
+                stocks = JSON.parse(Buffer.concat(chunks).toString() || '{}').stocks ?? []
+              } catch {
+                /* 空 body */
+              }
+              try {
+                // @ts-ignore - api/valuation.js 是純 JS 模組,無 .d.ts 型別宣告
+                const { getValuations } = await import('./api/valuation.js')
+                send({ comments: await getValuations(stocks) })
+              } catch {
+                send({ comments: {} })
+              }
+            })
+            return
+          }
         } catch {
           res.statusCode = 200
           return res.end('{}')
