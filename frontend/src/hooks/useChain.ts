@@ -166,3 +166,62 @@ export function useProtocolStats(market: Market): ProtocolStats {
     ready: ok(0),
   }
 }
+
+export type Holding = { code: string; shares: number; value: number }
+export type Portfolio = {
+  twd: number // 錢包 TWD
+  holdings: Holding[] // 錢包內各台股持倉(shares > 0)
+  stockValue: number // Σ 持倉市值
+  deposit: number // 借貸出借中
+  collateral: number // 質押抵押價值
+  debt: number // 借款
+  hfBps: bigint // 健康因子(bps)
+  netWorth: number // 總資產
+  ready: boolean
+}
+
+/** 個人投資組合彙總(全部讀現有合約;市值用 usePrices 的預言機價)。 */
+export function useHoldings(market: Market): Portfolio {
+  const { address } = useAccount()
+  const { twd } = useTwdBalance()
+  const { data } = useReadContracts({
+    contracts: [
+      ...STOCKS.map((s) => ({ ...stockContract(s.code)!, functionName: "balanceOf", args: [address as `0x${string}`] })),
+      { ...LENDING, functionName: "getUserAccount", args: [address as `0x${string}`] },
+      { ...LENDING, functionName: "getUserDeposit", args: [address as `0x${string}`] },
+    ],
+    query: { enabled: !!address, refetchInterval: 12000 },
+  })
+
+  const n = STOCKS.length
+  const holdings: Holding[] = []
+  let stockValue = 0
+  STOCKS.forEach((s, i) => {
+    const r = data?.[i]
+    if (r?.status !== "success") return
+    const shares = Number(r.result as bigint) / 1e18
+    if (shares <= 0) return
+    const value = shares * (market[s.code]?.price || 0)
+    holdings.push({ code: s.code, shares, value })
+    stockValue += value
+  })
+  holdings.sort((a, b) => b.value - a.value)
+
+  const acct = data?.[n]?.status === "success" ? (data![n].result as readonly bigint[]) : undefined
+  const collateral = acct ? Number(acct[0]) / 1e6 : 0
+  const debt = acct ? Number(acct[1]) / 1e6 : 0
+  const hfBps = acct ? acct[3] : 0n
+  const deposit = data?.[n + 1]?.status === "success" ? Number(data![n + 1].result as bigint) / 1e6 : 0
+
+  return {
+    twd,
+    holdings,
+    stockValue,
+    deposit,
+    collateral,
+    debt,
+    hfBps,
+    netWorth: twd + stockValue + deposit + collateral - debt,
+    ready: !!address && !!data,
+  }
+}

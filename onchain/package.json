@@ -7,6 +7,7 @@
     "compile": "hardhat compile",
     "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
     "feed:sepolia": "node scripts/feeder.js",
+    "keeper:sepolia": "node scripts/keeper.js",
     "verify:sepolia": "hardhat run scripts/verify.js --network sepolia"
   },
   "devDependencies": {
