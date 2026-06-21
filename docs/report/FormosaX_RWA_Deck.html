@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FormosaX ｜ 台股 RWA 代幣化與 AI 估值平台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#07090e; --bg2:#0c1018; --jade:#19e6b0; --gold:#f5b544;
+    --fg:#e7eef7; --muted:#8a97a8; --line:rgba(255,255,255,.09); --up:#ff5a5a; --down:#46e08a;
+    --display:"Clash Display","Noto Sans TC",sans-serif;
+    --sans:"General Sans","Noto Sans TC",system-ui,sans-serif;
+    --mono:"JetBrains Mono",monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-font-smoothing:antialiased;}
+  .deck{height:100vh;overflow-y:scroll;scroll-snap-type:y mandatory;scroll-behavior:smooth;}
+  .slide{
+    position:relative;min-height:100vh;scroll-snap-align:start;
+    display:flex;flex-direction:column;justify-content:center;
+    padding:7vh 8vw;overflow:hidden;
+  }
+  /* 背景:玉/金光暈 + 終端網格 */
+  .slide::before{content:"";position:absolute;inset:0;z-index:0;
+    background:
+      radial-gradient(50vw 50vw at 10% -8%, rgba(25,230,176,.10), transparent 60%),
+      radial-gradient(45vw 45vw at 100% 0%, rgba(245,181,68,.08), transparent 55%);}
+  .slide::after{content:"";position:absolute;inset:0;z-index:0;opacity:.5;
+    background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+    background-size:46px 46px;mask-image:radial-gradient(120vw 90vh at 50% 0%,#000 35%,transparent 80%);}
+  .slide > *{position:relative;z-index:1;}
+
+  .brand{position:absolute;top:3.4vh;left:8vw;display:flex;align-items:center;gap:.5rem;font-weight:600;font-size:13px;color:var(--muted);z-index:2;}
+  .brand .mk{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,var(--jade),var(--gold));}
+  .pageno{position:absolute;bottom:3.2vh;right:8vw;font-family:var(--mono);font-size:12px;color:var(--muted);z-index:2;}
+
+  .kicker{font-family:var(--mono);font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--jade);margin-bottom:14px;}
+  h1{font-family:var(--display);font-weight:700;line-height:1.08;letter-spacing:-.5px;margin:0;font-size:clamp(30px,4.6vw,58px);}
+  h2{font-family:var(--display);font-weight:600;line-height:1.12;margin:0 0 18px;font-size:clamp(24px,3.2vw,40px);}
+  .jade{color:var(--jade);} .gold{color:var(--gold);}
+  .lead{color:var(--muted);font-size:clamp(15px,1.5vw,20px);max-width:60ch;margin-top:14px;line-height:1.6;}
+  .mono{font-family:var(--mono);}
+
+  ul.b{list-style:none;padding:0;margin:18px 0 0;display:flex;flex-direction:column;gap:12px;}
+  ul.b li{position:relative;padding-left:26px;font-size:clamp(15px,1.5vw,19px);line-height:1.5;}
+  ul.b li::before{content:"";position:absolute;left:0;top:.62em;width:9px;height:9px;border-radius:3px;background:linear-gradient(135deg,var(--jade),var(--gold));}
+  ul.b li b{color:var(--fg);} ul.b li .m{color:var(--muted);}
+
+  table{width:100%;border-collapse:collapse;margin-top:18px;font-size:clamp(13px,1.25vw,16px);}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);}
+  thead th{color:var(--jade);font-weight:600;font-size:.92em;background:rgba(255,255,255,.03);}
+  td.hl{color:var(--jade);font-weight:600;} tbody tr:hover{background:rgba(255,255,255,.02);}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px;}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px;}
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:18px 20px;}
+  .card h3{margin:0 0 8px;font-size:clamp(15px,1.5vw,18px);}
+  .card.j{box-shadow:inset 0 0 0 1px rgba(25,230,176,.18);}
+  .card.g{box-shadow:inset 0 0 0 1px rgba(245,181,68,.18);}
+  .chip{display:inline-flex;align-items:center;gap:.4rem;padding:.2rem .7rem;border-radius:999px;border:1px solid var(--line);font-size:13px;color:var(--muted);}
+
+  pre.arch{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px;font-family:var(--mono);font-size:clamp(10px,1vw,13px);line-height:1.45;color:#bfe9dc;overflow:auto;white-space:pre;}
+  a{color:var(--jade);text-decoration:none;} a:hover{text-decoration:underline;}
+  .addr{font-family:var(--mono);font-size:clamp(11px,1.05vw,14px);}
+  .small{font-size:13px;color:var(--muted);}
+
+  /* cover */
+  .cover .mark{width:96px;height:96px;border-radius:26px;background:linear-gradient(135deg,var(--jade),var(--gold));display:grid;place-items:center;box-shadow:0 18px 50px -16px rgba(25,230,176,.6);margin-bottom:26px;}
+  .cover .mark svg{width:56px;height:56px;}
+  .team{margin-top:26px;font-family:var(--mono);color:var(--muted);font-size:14px;letter-spacing:.04em;}
+
+  /* progress dots */
+  .dots{position:fixed;right:18px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:9px;z-index:50;}
+  .dots a{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.18);transition:.2s;}
+  .dots a.on{background:var(--jade);box-shadow:0 0 8px var(--jade);transform:scale(1.3);}
+  .hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);font-size:12px;color:var(--muted);z-index:50;background:rgba(12,16,24,.7);border:1px solid var(--line);border-radius:999px;padding:5px 14px;backdrop-filter:blur(6px);}
+
+  @media print{
+    @page{size:A4 landscape;margin:0;}
+    html,body{height:auto;}
+    .deck{height:auto;overflow:visible;display:block;}
+    .slide{min-height:0;height:195mm;width:297mm;page-break-after:always;break-after:page;padding:14mm 18mm;justify-content:center;}
+    .slide::after{opacity:.35;}
+    .dots,.hint,.brand{}
+    .dots,.hint{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+<!-- 1 封面 -->
+<section class="slide cover">
+  <div class="mark">
+    <svg viewBox="0 0 48 48"><path d="M11 33 L20 24 L27 28 L37 15" fill="none" stroke="#07090e" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="37" cy="15" r="3.6" fill="#07090e"/></svg>
+  </div>
+  <div class="kicker">Real World Asset · On-chain · AI Valuation</div>
+  <h1>Formosa<span class="jade">X</span> — 把<span class="jade">台股</span>變成<br/>24/7 可碎片化的鏈上資產</h1>
+  <p class="lead">受監管 TWD 穩定幣 × 預言機即時估值 × AI 輔助公允估值/風險 × 鏈上 1:1 實股擔保 × 可組合 DeFi(借貸/IPO)。</p>
+  <div class="team">題目七 · RWA 資產代幣化與估值系統　｜　組員 114AB8049 · 114AB8031 · 114AB8051 · 114AB8016<br/>Live Demo:https://rwa0607.vercel.app　｜　Ethereum Sepolia(Etherscan 已驗證)</div>
+  <div class="pageno">01 / 17</div>
+</section>
+
+<!-- 2 商業情境 -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">Business Context</div>
+  <h2>商業情境</h2>
+  <p class="lead">金融機構希望把不動產、債權、<b class="jade">股票</b>等資產上鏈,提高流動性與投資可及性 —— 但卡在兩道牆:</p>
+  <div class="grid2">
+    <div class="card g"><h3 class="gold">① 估值不透明</h3><div class="small">資產缺乏即時、可驗證的公允價格,投資人難判斷標的價值與背後擔保。</div></div>
+    <div class="card j"><h3 class="jade">② 流動性受限</h3><div class="small">交易受時段、單位(整股)、跨境與 T+2 結算限制,資金進出摩擦高。</div></div>
+  </div>
+  <p class="lead">FormosaX 以<b class="jade">台股</b>切入(資料公開、估值基準明確、最易驗證),示範可複製到其他資產的「代幣化 × 預言機 × AI 估值 × DeFi」完整堆疊。</p>
+  <div class="pageno">02 / 17</div>
+</section>
+
+<!-- 3 問題 -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">① Problem</div>
+  <h2>台股投資與流動性的<span class="jade">結構性痛點</span></h2>
+  <ul class="b">
+    <li>⏰ <b>僅限盤中</b>:09:00–13:30 才能交易,夜間/假日無法即時反應國際盤。</li>
+    <li>🧱 <b>單位門檻</b>:一張 1,000 股門檻高;零股流動性低、撮合慢。</li>
+    <li>🌏 <b>跨境困難</b>:外資開戶/換匯/稅務繁瑣,進場成本高。</li>
+    <li>🧾 <b>估值與擔保不透明</b>:散戶難即時驗證公允價值與背後擔保。</li>
+    <li>🔗 <b>無法進入 DeFi</b>:持股不能直接質押借貸或組合應用。</li>
+  </ul>
+  <p class="lead">台股是高品質資產,卻被「時段 × 單位 × 國界 × 結算」鎖住流動性。</p>
+  <div class="pageno">03 / 17</div>
+</section>
+
+<!-- 4 解決方案 -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">② Solution</div>
+  <h2>FormosaX 解決方案<span class="small mono" style="margin-left:10px">(全部已上鏈)</span></h2>
+  <ul class="b">
+    <li><b>代幣化台股(ERC-20)</b>:每檔台股 1:1 對應代幣(dTSMC…),工廠量產、可碎片化至 0.01 股。</li>
+    <li><b>預言機即時估值</b>:Chainlink AggregatorV3 風格 PriceOracle,餵入 TWSE 價,依即時價鑄造/贖回。</li>
+    <li><b class="jade">AI 輔助估值與風險(題目七核心)</b>:回歸模型預測公允價 + 風險分數,動態調整借貸 LTV/清算線。</li>
+    <li><b>受監管 TWD 穩定幣</b>:對標金管會草案 — 100% 儲備證明、揭露、贖回、凍結/暫停、角色分權。</li>
+    <li><b>DeFi 應用</b>:質押台股代幣借 TWD(LendingPool)、代幣化新股認購(StockIPO,超額 pro-rata 配額)。</li>
+  </ul>
+  <div class="pageno">04 / 17</div>
+</section>
+
+<!-- 5 系統架構 -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">Architecture · 技術建議對照</div>
+  <h2>系統架構</h2>
+  <pre class="arch"> 使用者（MetaMask / wagmi + RainbowKit）
+        │  React + Vite + shadcn/ui  →  rwa0607.vercel.app
+        ▼
+ ┌──────────── 鏈上（Ethereum Sepolia，可遷 L2 降 gas）────────────┐
+ │  RegulatedTWD（ERC-20 穩定幣 + 儲備證明 + 角色/凍結/暫停）       │
+ │  StockFactory ──量產──► StockToken ×12（ERC-20 代幣化台股）     │
+ │  PriceOracle（Chainlink 風格）  LendingPool（借貸/清算）  StockIPO │
+ └──────────────────────────────────────────────────────────────────┘
+        ▲                                   ▲
+   鏈下 Feeder（TWSE OpenAPI 餵價）   AI 估值與風險引擎（Python 回歸模型）</pre>
+  <ul class="b" style="margin-top:14px">
+    <li><b>區塊鏈</b>:Ethereum Sepolia,可平移 Arbitrum / Base 等 L2。　<b>代幣標準</b>:ERC-20(碎片化 + DeFi 可組合),ERC-721 預留不動產類。</li>
+    <li><b>Oracle</b>:自建 Chainlink 風格預言機;路線圖以 Chainlink Functions 去中心化餵價並把 AI 輸出上鏈。</li>
+  </ul>
+  <div class="pageno">05 / 17</div>
+</section>
+
+<!-- 6 AI 估值 -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">AI Valuation & Risk · 題目七核心</div>
+  <h2>AI 輔助<span class="jade">估值</span>與<span class="gold">風險</span>模型</h2>
+  <div class="grid3">
+    <div class="card j"><h3 class="jade">① 公允估值(回歸)</h3><div class="small">歷史價量 + 技術指標 + 大盤連動 +(進階)財報因子 → 線性回歸 / 隨機森林預測 T+1 <b>公允價區間</b>,疊在市價上標示高/低估。</div></div>
+    <div class="card g"><h3 class="gold">② 風險評分</h3><div class="small">波動度、流動性、抵押集中度 → 0–100 風險分數,餵給 LendingPool <b>動態調整 LTV / 清算線</b>(50%/65% → 逐標的浮動)。</div></div>
+    <div class="card"><h3>③ 動態估值 Dashboard</h3><div class="small">市價 vs AI 公允價偏離、風險熱力圖、抵押健康度、儲備覆蓋率,全部讀自鏈上 view function。</div></div>
+  </div>
+  <p class="lead">落地路徑:鏈下 Python 訓練/推論 → 簽章 → Chainlink Functions 把「公允價/風險分數」寫上鏈供合約引用。(Demo 以預言機價 + 規則風控示範,AI 為加值層)</p>
+  <div class="pageno">06 / 17</div>
+</section>
+
+<!-- 7 市場 -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">③ Target Customers / Market</div>
+  <h2>目標客戶與市場規模</h2>
+  <div class="grid3">
+    <div class="card"><h3>🪙 加密散戶 / DeFi</h3><div class="small">想用穩定幣 24/7 配置台股、賺鏈上收益。</div></div>
+    <div class="card"><h3>🌏 海外華人 / 外資</h3><div class="small">低門檻參與台股,免開券商戶、無國界。</div></div>
+    <div class="card"><h3>🏦 券商 / 資管機構</h3><div class="small">代幣化發行、做市與新商品通路。</div></div>
+  </div>
+  <ul class="b">
+    <li><b>TAM</b>:台股總市值約 <b class="jade">NT$70 兆+</b>;全球 RWA 代幣化 BCG 預估 2030 年達 <b class="gold">~US$16 兆</b>。</li>
+    <li><b>SAM</b>:可代幣化精選台股 + 跨境/DeFi 客群。　<b>SOM</b>:初期 30–50 檔藍籌(0050 成分)「報價全市場、可交易精選」。</li>
+    <li>RWA 鏈上規模 2023→2025 高速成長(機構入場、美債/基金代幣化帶動),台股「資料公開、估值明確」最適合亞洲 RWA 示範。</li>
+  </ul>
+  <div class="pageno">07 / 17</div>
+</section>
+
+<!-- 8 商業模式 -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">④ Business Model</div>
+  <h2>商業模式 / 獲利 / 預期效益</h2>
+  <table>
+    <thead><tr><th>收入來源</th><th>說明</th></tr></thead>
+    <tbody>
+      <tr><td class="hl">交易手續費</td><td>鑄造/贖回微費(Demo 暫免,商轉可開)</td></tr>
+      <tr><td class="hl">AUM 管理費</td><td>對代幣化資產收年化管理費</td></tr>
+      <tr><td class="hl">借貸利差</td><td>LendingPool 借/存利差 + 清算手續費</td></tr>
+      <tr><td class="hl">IPO 承銷費</td><td>StockIPO 代幣化新股認購承銷費</td></tr>
+      <tr><td class="hl">穩定幣浮存</td><td>TWD 儲備之利息收益(對標真實穩定幣商模)</td></tr>
+    </tbody>
+  </table>
+  <p class="lead">效益:投資人(零股化/24-7/可進 DeFi)、發行方(新通路 + 流動性 + 可程式化合規)、平台(多元收入 + 網路效應)。</p>
+  <div class="pageno">08 / 17</div>
+</section>
+
+<!-- 9 競爭優勢 -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">⑤ Competitive Advantage</div>
+  <h2>為什麼比<span class="gold">傳統金融</span>好</h2>
+  <table>
+    <thead><tr><th>構面</th><th>傳統券商</th><th>中心化交易所</th><th class="hl">FormosaX</th></tr></thead>
+    <tbody>
+      <tr><td>交易時間</td><td>盤中</td><td>24/7</td><td class="hl">24/7</td></tr>
+      <tr><td>單位</td><td>整股/零股</td><td>受限</td><td class="hl">可碎片化 0.01 股</td></tr>
+      <tr><td>結算</td><td>T+2</td><td>內部帳</td><td class="hl">鏈上即時</td></tr>
+      <tr><td>估值透明</td><td>低</td><td>中</td><td class="hl">Oracle + AI,鏈上可驗</td></tr>
+      <tr><td>擔保證明</td><td>不可即時</td><td>託管黑箱</td><td class="hl">鏈上 1:1 Proof of Reserve</td></tr>
+      <tr><td>可組合性</td><td>無</td><td>有限</td><td class="hl">質押/借貸/認購/DeFi</td></tr>
+      <tr><td>合規</td><td>高</td><td>不一</td><td class="hl">穩定幣 + 角色/凍結/暫停</td></tr>
+    </tbody>
+  </table>
+  <div class="pageno">09 / 17</div>
+</section>
+
+<!-- 10 Lean Canvas -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">Lean Canvas</div>
+  <h2>精實畫布</h2>
+  <table>
+    <tbody>
+      <tr><td class="hl">① 客戶區隔</td><td>加密散戶、海外華人/外資、券商/資管</td><td class="hl">② 價值主張</td><td>24/7 碎片化台股 + 透明估值 + DeFi + 合規穩定幣</td></tr>
+      <tr><td class="hl">③ 通路</td><td>Web DApp(已上線)、錢包深連結、券商 API</td><td class="hl">④ 客戶關係</td><td>自助 DApp、儲備/估值儀表建立信任、社群</td></tr>
+      <tr><td class="hl">⑤ 收入流</td><td>交易費、AUM、借貸利差、IPO、儲備浮存</td><td class="hl">⑥ 關鍵資源</td><td>智能合約、預言機、AI 模型、實股託管</td></tr>
+      <tr><td class="hl">⑦ 關鍵活動</td><td>餵價/估值、合約維運、做市、合規對接</td><td class="hl">⑧ 關鍵夥伴</td><td>券商/保管行、Chainlink、做市商、審計</td></tr>
+      <tr><td class="hl">⑨ 成本結構</td><td colspan="3">gas / L2、雲端 AI 推論、智能合約審計、法遵與開發維運</td></tr>
+    </tbody>
+  </table>
+  <div class="pageno">10 / 17</div>
+</section>
+
+<!-- 11 Tokenomics -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">Tokenomics Canvas</div>
+  <h2>代幣經濟</h2>
+  <ul class="b">
+    <li><b>名稱/定位</b>:dXXXX(如 dTSMC)= 代幣化台股,1 代幣 ↔ 1 股經濟權利;<b>TWD</b> = 平台計價穩定幣。</li>
+    <li><b>背後資產</b>:台灣上市股票,價格來源 TWSE(預言機);商轉以實股 1:1 託管擔保。</li>
+    <li><b>Mint / Burn</b>:存 TWD 依即時價 mint;redeem 反向燒毀;穩定幣 mintTWD / requestRedemption。</li>
+    <li><b>發行量</b>:無固定上限,供給隨「TWD 抵押鑄造」彈性增減,恆等於儲備擔保量。</li>
+    <li><b>角色</b>:admin/issuer、ATTESTOR(儲備簽證)、COMPLIANCE(凍結/暫停)、工廠 owner。</li>
+    <li><b>費用 / 二級市場</b>:Demo 免費;商轉開交易費/AUM/利差;未來上 DEX 做市 + 借貸釋放流動性。</li>
+  </ul>
+  <div class="pageno">11 / 17</div>
+</section>
+
+<!-- 12 Use Case Canvas -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">Use Case Canvas</div>
+  <h2>使用情境畫布</h2>
+  <div class="grid2">
+    <div class="card"><h3 class="jade">目標使用者</h3><div class="small">機構(發行/做市)、個人(配置/賺息)、零售(零股/跨境)。</div></div>
+    <div class="card"><h3 class="jade">場景 / 痛點解方</h3><div class="small">夜間配置、零股碎片化、抵押借 TWD、IPO 認購、即時驗證估值與擔保。</div></div>
+    <div class="card"><h3 class="jade">鏈上 / 鏈下流程</h3><div class="small">鏈下 TWSE 餵價 + AI 估值 → 鏈上鑄造/贖回/借貸/認購;前端 wagmi 直接讀寫。</div></div>
+    <div class="card"><h3 class="gold">法規 / 合規挑戰</h3><div class="small">證券型代幣定性、KYC/AML、穩定幣儲備與贖回、跨境稅務。</div></div>
+    <div class="card"><h3 class="gold">競品 / 差異化</h3><div class="small">vs 券商(24/7+碎片化)、vs CEX(可驗擔保)、vs 其他 RWA(Oracle+AI + 完整 DeFi)。</div></div>
+    <div class="card g"><h3 class="gold">風險管理機制</h3><div class="small">setFrozen 凍結、pause 暫停、黑名單、預言機過期價檢查、健康因子/清算。</div></div>
+  </div>
+  <div class="pageno">12 / 17</div>
+</section>
+
+<!-- 13 Smart Contract Role Map -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">Smart Contract Role Map</div>
+  <h2>合約角色與權限</h2>
+  <table>
+    <thead><tr><th>角色</th><th>權限</th></tr></thead>
+    <tbody>
+      <tr><td class="hl">DEFAULT_ADMIN / issuer</td><td>發行、設定揭露、issue 鑄造</td></tr>
+      <tr><td class="hl">ATTESTOR</td><td>attestReserves 簽署儲備證明(時間戳 + 文件雜湊)</td></tr>
+      <tr><td class="hl">COMPLIANCE</td><td>setFrozen 凍結地址、pause / unpause 全面暫停</td></tr>
+      <tr><td class="hl">owner(工廠/借貸/IPO)</td><td>上架代幣、設風險參數、建立 IPO 認購案</td></tr>
+      <tr><td class="hl">feeder</td><td>updatePrices 餵價</td></tr>
+    </tbody>
+  </table>
+  <ul class="b" style="margin-top:12px">
+    <li><b>合約</b>:RegulatedTWD · PriceOracle · StockFactory · StockToken×12 · LendingPool · StockIPO(皆已驗證)。</li>
+    <li><b>轉移邏輯</b>:_update 覆寫攔截黑名單/凍結 + whenNotPaused;<b>可升級</b>:現不可升級(易審計),路線圖評估 UUPS + 多簽/時間鎖;<b>permit</b>:路線圖支援 ERC-2612;<b>事件</b>全上鏈可稽核。</li>
+  </ul>
+  <div class="pageno">13 / 17</div>
+</section>
+
+<!-- 14 實作亮點 -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">Live Demo · 已真實上鏈</div>
+  <h2>實作亮點 <span class="small mono" style="margin-left:8px">rwa0607.vercel.app</span></h2>
+  <ul class="b">
+    <li><b>模擬資產上鏈</b>:12 檔台股代幣化,可碎片化買賣。</li>
+    <li><b>動態估值 Dashboard</b>:即時市價、儲備覆蓋率、借貸健康因子,皆讀自鏈上 view。</li>
+    <li><b>完整 DeFi</b>:領 TWD → 買賣 → 質押借 TWD → 認購 IPO → 穩定幣儲備/贖回,每筆附 Etherscan 連結。</li>
+  </ul>
+  <div class="card" style="margin-top:14px">
+    <div class="small" style="margin-bottom:8px">合約地址(Sepolia · Etherscan 已驗證綠勾)</div>
+    <div class="addr">RegulatedTWD&nbsp;&nbsp;<span class="jade">0x0ec97A83E96C7e61b4eDD6FB5Bf33ddEaF63df67</span></div>
+    <div class="addr">PriceOracle&nbsp;&nbsp;&nbsp;&nbsp;<span class="jade">0xF1198ab9A92E21E60bB90003eDEC0887aecf2871</span></div>
+    <div class="addr">LendingPool&nbsp;&nbsp;&nbsp;&nbsp;<span class="jade">0xBebab317ec999ced702dE87C654868a9ede9ab82</span></div>
+    <div class="addr">StockIPO&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="jade">0x925BE0f709e4c9b38578142E9B94AFbb71aBB990</span></div>
+    <div class="addr">dTSMC(台積電)<span class="gold">0x1CB2Ea6f8eB47c24387B015C75D9d1dad800dc53</span></div>
+  </div>
+  <div class="pageno">14 / 17</div>
+</section>
+
+<!-- 15 流動性提升 -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">Liquidity Impact</div>
+  <h2>流動性提升效果</h2>
+  <table>
+    <thead><tr><th>指標</th><th>傳統台股</th><th class="hl">FormosaX 代幣化</th></tr></thead>
+    <tbody>
+      <tr><td>交易時間</td><td>~4.5 小時/日</td><td class="hl">24 小時 × 7 天</td></tr>
+      <tr><td>最小單位</td><td>1 股(零股慢)</td><td class="hl">0.01 股(完全碎片化)</td></tr>
+      <tr><td>結算</td><td>T+2</td><td class="hl">即時(鏈上原子結算)</td></tr>
+      <tr><td>跨境參與</td><td>高門檻</td><td class="hl">錢包即可,無國界</td></tr>
+      <tr><td>可組合性</td><td>無</td><td class="hl">質押/借貸/認購/DeFi</td></tr>
+      <tr><td>擔保驗證</td><td>不可即時</td><td class="hl">鏈上 1:1 Proof of Reserve</td></tr>
+    </tbody>
+  </table>
+  <p class="lead">交易可及時間 <b class="jade">+400%</b>、單位門檻 <b class="jade">↓99%</b>、新增「抵押釋放流動性」管道,海外資金無摩擦進場 → <b>有效流動性顯著提升</b>。</p>
+  <div class="pageno">15 / 17</div>
+</section>
+
+<!-- 16 二級市場 Uniswap -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">Secondary Market · Uniswap</div>
+  <h2>二級市場:<span class="jade">Uniswap</span> 流動性池</h2>
+  <div class="grid3">
+    <div class="card j"><h3 class="jade">站內 AMM 交換</h3><div class="small">前端直接打 Uniswap v3 SwapRouter,吃同一池流動性;QuoterV2 報價、exactInputSingle 交換。</div></div>
+    <div class="card j"><h3 class="jade">外部 Uniswap 可換</h3><div class="small">同一池在 app.uniswap.org(Sepolia)用 token 位址匯入即可交易。</div></div>
+    <div class="card g"><h3 class="gold">一/二級市場套利收斂</h3><div class="small">預言機價(一級)錨定公允價、AMM(二級)做 24/7 價格發現,偏離由套利者拉回。</div></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="small" style="margin-bottom:6px">dTSMC / TWD · Uniswap v3 0.3% 池(已驗證,池價 = 預言機價)</div>
+    <div class="addr"><span class="jade">0xe69aF036F8290Ed0371f79dE8E1060211e9f5353</span></div>
+  </div>
+  <p class="lead">把「流動性提升」做成<b class="jade">真的可交易</b>的二級市場 —— 不只 mint/redeem,而是 24/7 AMM 自由買賣 + 真實價格發現。</p>
+  <div class="pageno">16 / 17</div>
+</section>
+
+<!-- 17 路線圖 / 結語 -->
+<section class="slide">
+  <div class="brand"><span class="mk"></span>FormosaX</div>
+  <div class="kicker">Roadmap · Closing</div>
+  <h2>路線圖與結語</h2>
+  <div class="grid3">
+    <div class="card j"><h3 class="jade">Phase 1 · 已完成</h3><div class="small">台股代幣化 + 預言機 + 穩定幣 + 借貸 + IPO,部署 Sepolia、Etherscan 驗證、上線 Vercel。</div></div>
+    <div class="card"><h3>Phase 2</h3><div class="small">AI 估值/風險上鏈(Chainlink Functions)、動態 LTV、遷 L2 降 gas。</div></div>
+    <div class="card g"><h3 class="gold">Phase 3</h3><div class="small">實股託管 + KYC/合規、上 DEX 做市、擴展不動產/債權(ERC-721)。</div></div>
+  </div>
+  <p class="lead">FormosaX 以台股示範「透明估值(Oracle+AI)× 鏈上擔保 × 可組合 DeFi × 可程式化合規」的完整 RWA 堆疊,且<b class="jade">已真實部署、可驗證</b>。</p>
+  <h1 style="margin-top:18px;font-size:clamp(28px,3.4vw,44px)">Thanks for watching — <span class="jade">Q&amp;A</span></h1>
+  <div class="pageno">17 / 17</div>
+</section>
+
+</div>
+
+<div class="dots" id="dots"></div>
+<div class="hint">↑ ↓ / 滑鼠滾輪換頁　·　Ctrl+P 可列印成 PDF(橫向)</div>
+
+<script>
+  const deck=document.getElementById('deck');
+  const slides=[...document.querySelectorAll('.slide')];
+  const dots=document.getElementById('dots');
+  slides.forEach((s,i)=>{const a=document.createElement('a');a.href='#';a.onclick=e=>{e.preventDefault();s.scrollIntoView({behavior:'smooth'});};dots.appendChild(a);});
+  const dotEls=[...dots.children];
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){const i=slides.indexOf(e.target);dotEls.forEach((d,j)=>d.classList.toggle('on',j===i));}});},{threshold:.6});
+  slides.forEach(s=>io.observe(s));
+  let idx=0;
+  function go(n){idx=Math.max(0,Math.min(slides.length-1,n));slides[idx].scrollIntoView({behavior:'smooth'});}
+  addEventListener('keydown',e=>{
+    if(['ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();go(idx+1);}
+    if(['ArrowUp','PageUp'].includes(e.key)){e.preventDefault();go(idx-1);}
+  });
+  // 同步 idx 與目前可見頁
+  const io2=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting)idx=slides.indexOf(e.target);});},{threshold:.6});
+  slides.forEach(s=>io2.observe(s));
+</script>
+</body>
+</html>

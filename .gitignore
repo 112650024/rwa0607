@@ -8,8 +8,8 @@
 # hardhat build artifacts
 onchain/artifacts/
 onchain/cache/
-onchain/deployed.json
 onchain/typechain-types/
+# 註:onchain/deployed.json 保留進版控(只是公開合約位址 + ABI,非機密),clone 後 feeder/keeper 可直接讀
 
 # frontend build
 frontend/dist/
